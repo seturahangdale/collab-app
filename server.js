@@ -48,6 +48,8 @@ const versionSchema = new mongoose.Schema({
 const docSchema = new mongoose.Schema({
   roomId:       { type: String, required: true, unique: true },
   content:      { type: String, default: '' },
+  title:        { type: String, default: '' },
+  roomPassword: { type: String, default: null },
   createdBy:    { type: String, default: '' },
   lastModified: { type: Date, default: Date.now },
   versions:     { type: [versionSchema], default: [] },
@@ -98,16 +100,26 @@ app.post('/api/login', async (req, res) => {
 
 app.get('/api/documents', authMiddleware, async (req, res) => {
   try {
-    const docs = await Document.find({}, 'roomId content createdBy lastModified')
+    const docs = await Document.find({}, 'roomId title roomPassword content createdBy lastModified')
       .sort({ lastModified: -1 }).limit(50);
     res.json(docs.map(d => ({
       roomId:       d.roomId,
+      title:        d.title || '',
+      hasPassword:  !!d.roomPassword,
       preview:      d.content.slice(0, 120).replace(/\n/g, ' '),
       charCount:    d.content.length,
       wordCount:    d.content.trim() ? d.content.trim().split(/\s+/).length : 0,
       createdBy:    d.createdBy,
       lastModified: d.lastModified,
     })));
+  } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.get('/api/document/:roomId/info', authMiddleware, async (req, res) => {
+  try {
+    const doc = await Document.findOne({ roomId: req.params.roomId }, 'title roomPassword');
+    if (!doc) return res.json({ exists: false, hasPassword: false, title: '' });
+    res.json({ exists: true, hasPassword: !!doc.roomPassword, title: doc.title || '' });
   } catch { res.status(500).json({ error: 'Server error' }); }
 });
 
@@ -198,7 +210,7 @@ app.post('/api/ai-assist', authMiddleware, async (req, res) => {
 const rooms = {};
 
 function getOrCreateRoom(roomId) {
-  if (!rooms[roomId]) rooms[roomId] = { documentText: '', users: {} };
+  if (!rooms[roomId]) rooms[roomId] = { documentText: '', title: '', users: {} };
   return rooms[roomId];
 }
 
@@ -241,21 +253,33 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   console.log(`Socket connected: ${socket.id} (${socket.username})`);
 
-  socket.on('join-room', async ({ roomId }) => {
+  socket.on('join-room', async ({ roomId, password }) => {
     const room = getOrCreateRoom(roomId);
     socket.rooms.forEach((r) => { if (r !== socket.id) socket.leave(r); });
+
+    let docContent = room.documentText;
+    let docTitle   = room.title || '';
+    try {
+      const doc = await Document.findOne({ roomId });
+      if (doc) {
+        if (doc.roomPassword) {
+          const valid = password ? await bcrypt.compare(password, doc.roomPassword) : false;
+          if (!valid) { socket.emit('room-error', { error: 'Incorrect room password' }); return; }
+        }
+        docContent = doc.content; docTitle = doc.title || '';
+        room.documentText = docContent; room.title = docTitle;
+      } else {
+        const newDoc = { roomId, content: '', createdBy: socket.username };
+        if (password) newDoc.roomPassword = await bcrypt.hash(password, 10);
+        await Document.create(newDoc);
+      }
+    } catch (err) { console.error('Load error:', err); }
+
     socket.join(roomId);
     socket.roomId = roomId;
     room.users[socket.id] = { username: socket.username, socketId: socket.id };
 
-    let docContent = room.documentText;
-    try {
-      const doc = await Document.findOne({ roomId });
-      if (doc) { docContent = doc.content; room.documentText = docContent; }
-      else { await Document.create({ roomId, content: '', createdBy: socket.username }); }
-    } catch (err) { console.error('Load error:', err); }
-
-    socket.emit('init-document', { text: docContent });
+    socket.emit('init-document', { text: docContent, title: docTitle });
     socket.emit('user-list',     { users: Object.values(room.users) });
     socket.emit('chat-history',  { messages: room.messages || [] });
     socket.to(roomId).emit('user-joined', {
@@ -280,6 +304,14 @@ io.on('connection', (socket) => {
   socket.on('typing', ({ roomId }) => {
     const room = rooms[roomId]; if (!room || !room.users[socket.id]) return;
     socket.to(roomId).emit('typing', { username: room.users[socket.id].username, socketId: socket.id });
+  });
+
+  socket.on('title-change', async ({ roomId, title }) => {
+    const room = rooms[roomId]; if (!room) return;
+    const clean = (title || '').trim().slice(0, 100);
+    room.title = clean;
+    try { await Document.findOneAndUpdate({ roomId }, { title: clean }); } catch {}
+    socket.to(roomId).emit('title-change', { title: clean });
   });
 
   socket.on('chat-message', ({ roomId, text }) => {
