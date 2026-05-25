@@ -689,6 +689,64 @@
     }
 
     /* ════════════════════════════════════════
+       AVATAR PICKER (registration) — Monster characters
+    ════════════════════════════════════════ */
+    #avatar-section {
+      display:none; width:100%; max-width:360px;
+    }
+    #avatar-section.show { display:block; }
+    .av-pick-label {
+      font-size:.7rem; font-weight:700; letter-spacing:1px;
+      text-transform:uppercase; color:var(--t3); margin-bottom:10px; display:block;
+    }
+    .av-pick-grid {
+      display:grid; grid-template-columns:repeat(5,1fr); gap:8px;
+      max-height:260px; overflow-y:auto;
+      padding-right:4px; scrollbar-width:thin; scrollbar-color:var(--s3) transparent;
+    }
+    .av-opt {
+      width:100%; aspect-ratio:1; border-radius:16px; border:2.5px solid var(--s3);
+      background:var(--bg); cursor:pointer; overflow:hidden; padding:3px;
+      display:flex; align-items:center; justify-content:center;
+      transition:all .18s cubic-bezier(.34,1.56,.64,1); position:relative;
+    }
+    .av-opt img { width:100%; height:100%; object-fit:contain; border-radius:12px; display:block; }
+    .av-opt:hover { border-color:var(--accent); transform:scale(1.1) translateY(-2px); box-shadow:0 6px 20px rgba(217,119,6,.2); }
+    .av-opt.selected {
+      border-color:var(--accent);
+      box-shadow:0 0 0 3px var(--accent-glow), 0 6px 20px rgba(217,119,6,.25);
+      transform:scale(1.1) translateY(-2px);
+    }
+    .av-opt.selected::after {
+      content:'✓'; position:absolute; top:3px; right:5px;
+      font-size:.65rem; color:var(--accent); font-weight:900;
+      background:#fff; border-radius:50%; width:14px; height:14px;
+      display:flex; align-items:center; justify-content:center; line-height:1;
+    }
+    body.dark .av-opt { background:var(--s1); border-color:var(--s3); }
+
+    /* Avatar image in topbar circle */
+    .av img { width:100%; height:100%; object-fit:contain; border-radius:50%; display:block; }
+    .av { overflow:hidden; }
+
+    /* Avatar in dashboard header */
+    .db-av {
+      width:32px; height:32px; border-radius:50%; overflow:hidden;
+      display:flex; align-items:center; justify-content:center;
+      background:var(--s2); flex-shrink:0;
+    }
+    .db-av img { width:100%; height:100%; object-fit:contain; }
+
+    /* Avatar in chat bubble */
+    .chat-av {
+      width:26px; height:26px; border-radius:50%; flex-shrink:0; overflow:hidden;
+      display:flex; align-items:center; justify-content:center;
+      background:var(--s2); margin-top:1px;
+    }
+    .chat-av img { width:100%; height:100%; object-fit:contain; }
+    .chat-av.initials-av { font-size:.62rem; font-weight:800; color:#fff; }
+
+    /* ════════════════════════════════════════
        DOCUMENT TITLE (editable in topbar)
     ════════════════════════════════════════ */
     #doc-title-wrap {
@@ -824,6 +882,14 @@
         <label for="r-in">Room name <span style="opacity:.5;font-weight:500">(optional)</span></label>
         <input id="r-in" type="text" placeholder="leave empty to see all docs" maxlength="50" autocomplete="off" />
       </div>
+      <!-- Avatar picker — only shown on Register tab, populated by JS -->
+      <div id="avatar-section">
+        <span class="av-pick-label">Choose your character</span>
+        <div class="av-pick-grid" id="av-pick-grid">
+          <!-- JS will inject monster avatar buttons here -->
+        </div>
+      </div>
+
       <div id="auth-error" class="auth-err" style="display:none"></div>
       <button class="login-btn" id="join-btn">Login &amp; Join Room →</button>
     </div>
@@ -875,6 +941,7 @@
   <header class="db-header">
     <span class="db-logo">Collab<span>Edit</span></span>
     <div class="db-user">
+      <span id="db-av" class="db-av"></span>
       <span id="db-username">—</span>
     </div>
     <div class="db-gap"></div>
@@ -1245,8 +1312,10 @@ let socket = null, ed = null, currentRoom = '', suppressChg = false, prevOpen = 
 let isRegisterMode = false;
 let authToken    = localStorage.getItem('collabedit_token') || null;
 let authUsername = localStorage.getItem('collabedit_username') || null;
+let authAvatar   = localStorage.getItem('collabedit_avatar') || '';
 let allDocs = [];
 let pendingRoomId = null;
+let selectedAvatar = '';
 
 // Pre-fill username if stored
 if (authUsername) uIn.value = authUsername;
@@ -1271,18 +1340,59 @@ function colorFor(id){ if(!scMap[id]) scMap[id]=COLORS[cIdx++%COLORS.length]; re
 function initials(n){ return n.trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2)||'?'; }
 function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+// ── Monster Avatar System ─────────────────────────────────────────────
+const AVATAR_SEEDS = [
+  'Zuri','Blaze','Nova','Titan','Flux',
+  'Ember','Storm','Echo','Spike','Glow',
+  'Mist','Dash','Fern','Rush','Daze',
+  'Wisp','Blink','Quill','Pix','Comet',
+  'Jinx','Volt','Rune','Sage','Neon',
+  'Drax','Kira','Lumi','Orb','Zing'
+];
+const DICEBEAR_STYLE = 'adventurer';
+const DICEBEAR_BG    = 'b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf,f0e68c,c8f0c8,ffc8a0';
+
+function avatarUrl(seed) {
+  if (!seed) return '';
+  return `https://api.dicebear.com/7.x/${DICEBEAR_STYLE}/svg?seed=${encodeURIComponent(seed)}&backgroundColor=${DICEBEAR_BG}&radius=50`;
+}
+
+// Build picker grid
+const avatarSection = document.getElementById('avatar-section');
+const avPickGrid    = document.getElementById('av-pick-grid');
+AVATAR_SEEDS.forEach(seed => {
+  const btn = document.createElement('button');
+  btn.className  = 'av-opt';
+  btn.type       = 'button';
+  btn.dataset.av = seed;
+  btn.title      = seed;
+  const img      = document.createElement('img');
+  img.src        = avatarUrl(seed);
+  img.alt        = seed;
+  img.loading    = 'lazy';
+  btn.appendChild(img);
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.av-opt').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedAvatar = seed;
+  });
+  avPickGrid.appendChild(btn);
+});
+
 // ── Auth tab toggle ───────────────────────────────────────────────────
 tabLogin.addEventListener('click', () => {
   isRegisterMode = false;
   tabLogin.classList.add('active'); tabRegister.classList.remove('active');
   joinBtn.textContent = 'Login & Join Room →';
   authError.style.display = 'none';
+  avatarSection.classList.remove('show');
 });
 tabRegister.addEventListener('click', () => {
   isRegisterMode = true;
   tabRegister.classList.add('active'); tabLogin.classList.remove('active');
   joinBtn.textContent = 'Register & Join Room →';
   authError.style.display = 'none';
+  avatarSection.classList.add('show');
 });
 function showAuthError(msg) { authError.textContent = msg; authError.style.display = 'block'; }
 
@@ -1342,6 +1452,11 @@ function renderDocs(docs) {
 
 async function showDashboard() {
   dbUsername.textContent = authUsername;
+  const dbAv = document.getElementById('db-av');
+  if (dbAv) {
+    const url = avatarUrl(authAvatar);
+    dbAv.innerHTML = url ? `<img src="${url}" alt="${esc(authUsername||'')}" />` : initials(authUsername||'?');
+  }
   dashEl.classList.add('show');
   app.style.display = 'none';
   docTitleInput.value = '';
@@ -1437,11 +1552,20 @@ dashBtn.addEventListener('click', showDashboard);
 // ── Avatars ───────────────────────────────────────────────────────────
 function renderAvatars(users){
   avatarsEl.innerHTML='';
-  users.slice(0,7).forEach(({username,socketId})=>{
-    const d=document.createElement('div');
-    d.className='av'; d.style.background=colorFor(socketId); d.textContent=initials(username);
-    d.setAttribute('data-tip', username+(socket&&socketId===socket.id?' (you)':''));
-    if(socket&&socketId===socket.id) d.style.boxShadow=`0 0 0 2px ${colorFor(socketId)},0 0 0 4px var(--s1)`;
+  users.slice(0,7).forEach(({username, socketId, avatar})=>{
+    const d   = document.createElement('div');
+    const isMe = socket && socketId === socket.id;
+    d.className = 'av';
+    d.style.background = colorFor(socketId);
+    d.setAttribute('data-tip', username + (isMe ? ' (you)' : ''));
+    if (isMe) d.style.boxShadow = `0 0 0 2px ${colorFor(socketId)},0 0 0 4px var(--s1)`;
+    if (avatar) {
+      const img = document.createElement('img');
+      img.src = avatarUrl(avatar); img.alt = username;
+      d.appendChild(img);
+    } else {
+      d.textContent = initials(username);
+    }
     avatarsEl.appendChild(d);
   });
   if(users.length>7){
@@ -1450,7 +1574,6 @@ function renderAvatars(users){
     m.textContent=`+${users.length-7}`; m.setAttribute('data-tip',`${users.length-7} more`);
     avatarsEl.appendChild(m);
   }
-  // Update user count in room chip
   if(users.length > 1) {
     roomUserCount.textContent = users.length;
     roomUserCount.style.display = 'inline';
@@ -1586,10 +1709,19 @@ joinBtn.addEventListener('click', async () => {
   joinBtn.textContent = isRegisterMode ? 'Registering...' : 'Logging in...';
   authError.style.display = 'none';
 
+  if (isRegisterMode && !selectedAvatar) {
+    showAuthError('Please choose a character first!');
+    joinBtn.disabled = false; joinBtn.textContent = 'Register & Join Room →';
+    return;
+  }
+
   try {
+    const body = isRegisterMode
+      ? { username, password, avatar: selectedAvatar }
+      : { username, password };
     const res  = await fetch(`${API_BASE}/api/${isRegisterMode ? 'register' : 'login'}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -1600,8 +1732,10 @@ joinBtn.addEventListener('click', async () => {
     }
     authToken    = data.token;
     authUsername = data.username;
+    authAvatar   = data.avatar || '';
     localStorage.setItem('collabedit_token',    authToken);
     localStorage.setItem('collabedit_username', authUsername);
+    localStorage.setItem('collabedit_avatar',   authAvatar);
   } catch {
     showAuthError('Cannot reach server — is it running?');
     joinBtn.disabled = false;
@@ -1857,11 +1991,18 @@ function appendChatSys(text) {
 }
 function appendChatMsg(msg) {
   const isMe = msg.username === authUsername;
-  const el = document.createElement('div');
+  const el   = document.createElement('div');
   el.className = 'chat-bubble ' + (isMe ? 'me' : 'them');
-  const t = new Date(msg.time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  const t   = new Date(msg.time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
   const col = isMe ? 'var(--accent)' : colorFor(msg.username || '?');
-  el.innerHTML = `<div class="chat-meta"><span class="cu" style="color:${col}">${esc(msg.username)}</span><span>${t}</span></div><div class="chat-text">${esc(msg.text)}</div>`;
+  const url = msg.avatar ? avatarUrl(msg.avatar) : '';
+  const avHtml = url
+    ? `<span class="chat-av"><img src="${url}" alt="${esc(msg.username)}" /></span>`
+    : `<span class="chat-av initials-av" style="background:${col}">${initials(msg.username||'?')}</span>`;
+  const metaRow = isMe
+    ? `<div class="chat-meta"><span>${t}</span><span class="cu" style="color:${col}">${esc(msg.username)}</span>${avHtml}</div>`
+    : `<div class="chat-meta">${avHtml}<span class="cu" style="color:${col}">${esc(msg.username)}</span><span>${t}</span></div>`;
+  el.innerHTML = `${metaRow}<div class="chat-text">${esc(msg.text)}</div>`;
   chatMsgs.appendChild(el); chatMsgs.scrollTop = chatMsgs.scrollHeight;
 }
 

@@ -33,8 +33,9 @@ mongoose.connect(MONGO_URI)
 // ── Schemas ───────────────────────────────────────────────────────────────────
 
 const userSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true, trim: true },
-  password: { type: String, required: true },
+  username:  { type: String, required: true, unique: true, trim: true },
+  password:  { type: String, required: true },
+  avatar:    { type: String, default: '' },
   createdAt: { type: Date, default: Date.now },
 });
 const User = mongoose.model('User', userSchema);
@@ -69,7 +70,7 @@ function authMiddleware(req, res, next) {
 
 app.post('/api/register', async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, avatar } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
     if (username.length < 2)    return res.status(400).json({ error: 'Username must be at least 2 characters' });
     if (password.length < 4)    return res.status(400).json({ error: 'Password must be at least 4 characters' });
@@ -78,9 +79,9 @@ app.post('/api/register', async (req, res) => {
     if (exists) return res.status(400).json({ error: 'Username already taken' });
 
     const hashed = await bcrypt.hash(password, 10);
-    const user   = await User.create({ username: username.trim(), password: hashed });
-    const token  = jwt.sign({ userId: user._id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, username: user.username });
+    const user   = await User.create({ username: username.trim(), password: hashed, avatar: avatar || '' });
+    const token  = jwt.sign({ userId: user._id, username: user.username, avatar: user.avatar }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, username: user.username, avatar: user.avatar });
   } catch { res.status(500).json({ error: 'Server error' }); }
 });
 
@@ -91,8 +92,8 @@ app.post('/api/login', async (req, res) => {
     if (!user) return res.status(400).json({ error: 'Invalid username or password' });
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(400).json({ error: 'Invalid username or password' });
-    const token = jwt.sign({ userId: user._id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, username: user.username });
+    const token = jwt.sign({ userId: user._id, username: user.username, avatar: user.avatar || '' }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, username: user.username, avatar: user.avatar || '' });
   } catch { res.status(500).json({ error: 'Server error' }); }
 });
 
@@ -243,7 +244,9 @@ io.use((socket, next) => {
   if (!token) return next(new Error('Authentication required'));
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    socket.userId = decoded.userId; socket.username = decoded.username;
+    socket.userId   = decoded.userId;
+    socket.username = decoded.username;
+    socket.avatar   = decoded.avatar || '';
     next();
   } catch { next(new Error('Invalid token')); }
 });
@@ -277,7 +280,7 @@ io.on('connection', (socket) => {
 
     socket.join(roomId);
     socket.roomId = roomId;
-    room.users[socket.id] = { username: socket.username, socketId: socket.id };
+    room.users[socket.id] = { username: socket.username, socketId: socket.id, avatar: socket.avatar };
 
     socket.emit('init-document', { text: docContent, title: docTitle });
     socket.emit('user-list',     { users: Object.values(room.users) });
@@ -318,7 +321,7 @@ io.on('connection', (socket) => {
     const room = rooms[roomId]; if (!room || !room.users[socket.id]) return;
     const clean = text?.trim().slice(0, 500); if (!clean) return;
     if (!room.messages) room.messages = [];
-    const msg = { username: socket.username, text: clean, time: new Date().toISOString() };
+    const msg = { username: socket.username, avatar: socket.avatar || '', text: clean, time: new Date().toISOString() };
     room.messages.push(msg);
     if (room.messages.length > 100) room.messages.shift();
     io.to(roomId).emit('chat-message', msg);
