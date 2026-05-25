@@ -153,13 +153,21 @@ app.post('/api/ai-assist', authMiddleware, async (req, res) => {
     const prompt = prompts[action];
     if (!prompt) return res.status(400).json({ error: 'Invalid action' });
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
       { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) }
     );
     const data = await response.json();
+    if (data.error) {
+      console.error('Gemini error:', JSON.stringify(data.error));
+      return res.status(500).json({ error: 'Gemini: ' + (data.error.message || 'API error') });
+    }
     const result = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!result) return res.status(500).json({ error: 'AI response was empty' });
+    if (!result) {
+      const reason = data.candidates?.[0]?.finishReason || JSON.stringify(data).slice(0, 120);
+      console.error('Gemini empty result:', reason);
+      return res.status(500).json({ error: 'AI returned no content — ' + reason });
+    }
     res.json({ result: result.trim() });
   } catch (err) {
     console.error('AI error:', err);
