@@ -1,0 +1,48 @@
+Load error: MongoServerSelectionError: getaddrinfo ENOTFOUND cluster0-shard-00-01.atrmr.mongodb.net
+    at Topology.selectServer (C:\Users\Setu Rahangdale\Desktop\collab-app\node_modules\mongodb\lib\sdam\topology.js:348:38)
+    at async executeOperationWithRetries (C:\Users\Setu Rahangdale\Desktop\collab-app\node_modules\mongodb\lib\operations\execute_operation.js:157:18)
+    at async executeOperation (C:\Users\Setu Rahangdale\Desktop\collab-app\node_modules\mongodb\lib\operations\execute_operation.js:83:16)
+    at async FindCursor._initialize (C:\Users\Setu Rahangdale\Desktop\collab-app\node_modules\mongodb\lib\cursor\find_cursor.js:62:26)
+    at async FindCursor.cursorInit (C:\Users\Setu Rahangdale\Desktop\collab-app\node_modules\mongodb\lib\cursor\abstract_cursor.js:620:27)
+    at async FindCursor.fetchBatch (C:\Users\Setu Rahangdale\Desktop\collab-app\node_modules\mongodb\lib\cursor\abstract_cursor.js:654:13)
+    at async FindCursor.next (C:\Users\Setu Rahangdale\Desktop\collab-app\node_modules\mongodb\lib\cursor\abstract_cursor.js:326:17)
+    at async Collection.findOne (C:\Users\Setu Rahangdale\Desktop\collab-app\node_modules\mongodb\lib\collection.js:313:24)
+    at async model.Query._findOne (C:\Users\Setu Rahangdale\Desktop\collab-app\node_modules\mongoose\lib\query.js:2771:15)
+    at async model.Query.exec (C:\Users\Setu Rahangdale\Desktop\collab-app\node_modules\mongoose\lib\query.js:4797:63) {
+  errorLabelSet: Set(0) {},
+  reason: TopologyDescription {
+    type: 'ReplicaSetNoPrimary',
+    servers: Map(3) {
+      'cluster0-shard-00-01.atrmr.mongodb.net:27017' => [ServerDescription],
+      'cluster0-shard-00-02.atrmr.mongodb.net:27017' => [ServerDescription],
+      'cluster0-shard-00-00.atrmr.mongodb.net:27017' => [ServerDescription]
+    },
+    stale: false,
+    compatible: true,
+    heartbeatFrequencyMS: 10000,
+    localThresholdMS: 15,
+    setName: 'atlas-u1og3a-shard-0',
+    maxElectionId: new ObjectId('7fffffff0000000000000057'),
+    maxSetVersion: 41,
+    commonWireVersion: 25,
+    logicalSessionTimeoutMinutes: null
+  },
+  code: undefined,
+  [cause]: MongoNetworkError: getaddrinfo ENOTFOUND cluster0-shard-00-01.atrmr.mongodb.net
+      at TLSSocket.<anonymous> (C:\Users\Setu Rahangdale\Desktop\collab-app\node_modules\mongodb\lib\cmap\connect.js:314:44)
+      at Object.onceWrapper (node:events:631:12)
+      at TLSSocket.emit (node:events:509:20)
+      at emitErrorNT (node:internal/streams/destroy:170:8)
+      at emitErrorCloseNT (node:internal/streams/destroy:129:3)
+      at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    errorLabelSet: Set(3) { 'SystemOverloadedError', 'RetryableError', 'ResetPool' },
+    beforeHandshake: false,
+    [cause]: Error: getaddrinfo ENOTFOUND cluster0-shard-00-01.atrmr.mongodb.net
+        at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:121:26) {
+      errno: -3008,
+      code: 'ENOTFOUND',
+      syscall: 'getaddrinfo',
+      hostname: 'cluster0-shard-00-01.atrmr.mongodb.net'
+    }
+  }
+}
