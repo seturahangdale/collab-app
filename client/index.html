@@ -155,7 +155,7 @@
     .hero-cards { display: flex; flex-direction: column; gap: 12px; width: 100%; }
     .hero-card {
       background: rgba(255,255,255,.15); backdrop-filter: blur(20px);
-      border: 1px solid rgba(255,255,255,.28); border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.28); border-radius: 20px;
       padding: 16px 20px; display: flex; align-items: center; gap: 14px;
       animation: heroCardIn .6s cubic-bezier(.16,1,.3,1) both;
     }
@@ -163,19 +163,14 @@
     .hero-card:nth-child(3) { animation-delay: .2s; }
     @keyframes heroCardIn { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
     .hero-card-icon {
-      width:40px; height:40px; border-radius:11px;
-      background:rgba(255,255,255,.2);
+      width:40px; height:40px; border-radius:12px;
+      background:rgba(255,255,255,.25);
       display:flex; align-items:center; justify-content:center;
-      font-size:1.15rem; flex-shrink:0;
+      flex-shrink:0;
     }
+    .hero-card-icon svg { width:20px; height:20px; stroke:#fff; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
     .hero-card-text strong { display:block; font-size:.88rem; font-weight:700; color:#fff; }
     .hero-card-text span   { font-size:.76rem; color:rgba(255,255,255,.72); }
-
-    /* Particle canvas */
-    #particle-canvas {
-      position:absolute; inset:0; width:100%; height:100%;
-      pointer-events:none; z-index:0;
-    }
 
     @keyframes cardIn {
       from{ opacity:0; transform:translateY(24px) scale(.97); }
@@ -525,7 +520,6 @@
 
   <!-- RIGHT: Hero panel -->
   <div class="login-right">
-    <canvas id="particle-canvas"></canvas>
     <div class="login-hero">
       <div class="login-hero-brand">
         Collab<br><span>Edit</span>
@@ -533,21 +527,27 @@
       <p class="login-hero-sub">Write together. Edit in real-time.<br>Built for teams that move fast.</p>
       <div class="hero-cards">
         <div class="hero-card">
-          <div class="hero-card-icon">✍️</div>
+          <div class="hero-card-icon">
+            <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
           <div class="hero-card-text">
             <strong>Live Collaboration</strong>
             <span>Multiple people editing simultaneously</span>
           </div>
         </div>
         <div class="hero-card">
-          <div class="hero-card-icon">🕓</div>
+          <div class="hero-card-icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
           <div class="hero-card-text">
             <strong>Version History</strong>
             <span>Auto-saved snapshots, restore anytime</span>
           </div>
         </div>
         <div class="hero-card">
-          <div class="hero-card-icon">🔗</div>
+          <div class="hero-card-icon">
+            <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          </div>
           <div class="hero-card-text">
             <strong>Shareable Links</strong>
             <span>Share a link, anyone can join instantly</span>
