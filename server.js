@@ -22,7 +22,8 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'client')));
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://seturahangdale:Setu2816@cluster0.atrmr.mongodb.net/collabapp?appName=Cluster0';
-const JWT_SECRET = process.env.JWT_SECRET || 'collabedit_jwt_secret_2024';
+const JWT_SECRET     = process.env.JWT_SECRET     || 'collabedit_jwt_secret_2024';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyBjmd3SY4PnvUlMozZi7u0vTKHoQwMNO8s';
 
 mongoose.connect(MONGO_URI)
   .then(() => console.log('MongoDB connected'))
@@ -135,6 +136,35 @@ app.post('/api/document/:roomId/restore', authMiddleware, async (req, res) => {
     io.to(req.params.roomId).emit('doc-saved', { savedAt: new Date().toISOString() });
     res.json({ ok: true });
   } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+// ── AI endpoint ───────────────────────────────────────────────────────────────
+
+app.post('/api/ai-assist', authMiddleware, async (req, res) => {
+  try {
+    const { text, action } = req.body;
+    if (!text?.trim()) return res.status(400).json({ error: 'Text is required' });
+    const prompts = {
+      improve:  `Improve the writing quality of this text. Make it clearer, more engaging, and professional. Return ONLY the improved text, no explanations:\n\n${text}`,
+      grammar:  `Fix all grammar, spelling, and punctuation errors in this text. Return ONLY the corrected text, no explanations:\n\n${text}`,
+      summarize:`Summarize this text concisely in 2-3 sentences. Return ONLY the summary:\n\n${text}`,
+      continue: `Continue writing from where this text ends. Write 2-3 more sentences that flow naturally. Return ONLY the continuation:\n\n${text}`,
+    };
+    const prompt = prompts[action];
+    if (!prompt) return res.status(400).json({ error: 'Invalid action' });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) }
+    );
+    const data = await response.json();
+    const result = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!result) return res.status(500).json({ error: 'AI response was empty' });
+    res.json({ result: result.trim() });
+  } catch (err) {
+    console.error('AI error:', err);
+    res.status(500).json({ error: 'AI service error' });
+  }
 });
 
 // ── In-memory rooms ───────────────────────────────────────────────────────────
