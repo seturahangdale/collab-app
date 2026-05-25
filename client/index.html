@@ -7,10 +7,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✏️</text></svg>">
 
   <!-- LOAD ORDER: socket.io → marked → hljs → THEN Monaco AMD loader -->
-  <script>
-    // Dynamically load socket.io from same host (works on localhost and production)
-    (function(){var s=document.createElement('script');s.src=window.location.origin+'/socket.io/socket.io.js';document.head.appendChild(s);})();
-  </script>
+  <script src="/socket.io/socket.io.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark-dimmed.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
