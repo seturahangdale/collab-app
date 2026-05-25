@@ -439,6 +439,11 @@
     .db-empty svg { width:56px; height:56px; opacity:.2; }
     .db-empty p { font-size:.9rem; }
     .db-loading { text-align:center; padding:40px; color:var(--t3); font-size:.85rem; }
+    /* Skeleton loader */
+    .skel-card { background:#fff; border:1.5px solid var(--s3); border-radius:16px; padding:20px; display:flex; flex-direction:column; gap:10px; }
+    body.dark .skel-card { background:var(--s1); border-color:var(--s3); }
+    .skel-line { height:11px; border-radius:6px; background:linear-gradient(90deg,var(--s2) 25%,var(--s3) 50%,var(--s2) 75%); background-size:200% 100%; animation:skelShimmer 1.4s ease-in-out infinite; }
+    @keyframes skelShimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
     /* ── New room modal ── */
     #new-room-modal { display:none; position:fixed; inset:0; z-index:600; background:rgba(0,0,0,.35); backdrop-filter:blur(8px); align-items:center; justify-content:center; }
@@ -622,6 +627,57 @@
     }
     #focus-exit:hover { opacity:.85; }
     body.focus #focus-exit { display:block; }
+
+    /* ════════════════════════════════════════
+       MOBILE RESPONSIVE
+    ════════════════════════════════════════ */
+    @media (max-width: 768px) {
+      /* Login: hide right hero panel, full-width left */
+      .login-right  { display: none; }
+      .login-left   { width: 100%; min-width: unset; padding: 36px 28px; }
+
+      /* Topbar: hide text labels, keep icons */
+      #topbar { padding: 0 10px; gap: 6px; height: 48px; }
+      .tb-btn { font-size: 0; padding: 0 8px; min-width: 30px; gap: 0; }
+      .tb-btn svg { width: 15px; height: 15px; }
+      .tb-btn .cbadge { font-size: .58rem; }
+      .room-chip { max-width: 100px; overflow: hidden; text-overflow: ellipsis; font-size: .7rem; }
+      #lang-select, #prev-btn, #dl-btn, #hist-btn, #focus-btn { display: none; }
+      .tb-logo { font-size: .88rem; }
+
+      /* Main editor: full width, no preview */
+      #prev-pane, #divider { display: none !important; }
+      #ed-pane { width: 100% !important; }
+
+      /* Dashboard: single column */
+      .doc-grid { grid-template-columns: 1fr; }
+      .db-body  { padding: 20px 16px; }
+      .db-header { padding: 0 16px; }
+
+      /* Modals: full width */
+      #ai-modal, #history-modal { padding: 48px 0 0; align-items: flex-end; }
+      .ai-panel  { width: 100%; border-radius: 20px 20px 0 0; max-height: 88vh; }
+      .hist-panel { width: 100%; height: 78vh; border-radius: 20px 20px 0 0; }
+
+      /* Chat: full width */
+      #chat-panel { width: 100%; border-left: none; border-top: 1.5px solid var(--s3); border-radius: 20px 20px 0 0; top: auto; bottom: 26px; height: 72vh; transform: translateY(110%); }
+      #chat-panel.open { transform: translateY(0); }
+
+      /* New room modal: full width */
+      .nrm-card { border-radius: 20px 20px 0 0; max-width: 100%; margin: 0; }
+      #new-room-modal { align-items: flex-end; padding: 0; }
+
+      /* Bottom bar: smaller */
+      #bottombar { font-size: .65rem; padding: 0 10px; gap: 8px; }
+      #lc-info, #ch-info { display: none; }
+    }
+
+    @media (max-width: 480px) {
+      .login-left { padding: 28px 20px; }
+      .login-brand h1 { font-size: 1.6rem; }
+      #topbar { gap: 4px; padding: 0 8px; }
+      .tb-sep { display: none; }
+    }
 
     /* ════════════════════════════════════════
        PRINT / PDF
@@ -1103,7 +1159,8 @@ async function showDashboard() {
   dbUsername.textContent = authUsername;
   dashEl.classList.add('show');
   app.style.display = 'none';
-  docGrid.innerHTML = '<div class="db-loading">Loading documents...</div>';
+  const skelCard = `<div class="skel-card"><div class="skel-line" style="width:55%"></div><div class="skel-line" style="width:88%"></div><div class="skel-line" style="width:88%"></div><div class="skel-line" style="width:40%;margin-top:4px"></div></div>`;
+  docGrid.innerHTML = skelCard + skelCard + skelCard;
   try {
     const res  = await fetch(API_BASE + '/api/documents', { headers: { Authorization: 'Bearer ' + authToken } });
     const docs = await res.json();

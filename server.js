@@ -1,3 +1,4 @@
+require('dotenv').config();
 const dns = require('dns');
 dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
 
@@ -23,7 +24,7 @@ app.use(express.static(path.join(__dirname, 'client')));
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://seturahangdale:Setu2816@cluster0.atrmr.mongodb.net/collabapp?appName=Cluster0';
 const JWT_SECRET     = process.env.JWT_SECRET     || 'collabedit_jwt_secret_2024';
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyBjmd3SY4PnvUlMozZi7u0vTKHoQwMNO8s';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 
 mongoose.connect(MONGO_URI)
   .then(() => console.log('MongoDB connected'))
@@ -138,10 +139,27 @@ app.post('/api/document/:roomId/restore', authMiddleware, async (req, res) => {
   } catch { res.status(500).json({ error: 'Server error' }); }
 });
 
+// ── AI: list available models (debug) ────────────────────────────────────────
+
+app.get('/api/ai-models', authMiddleware, async (req, res) => {
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`
+    );
+    const data = await response.json();
+    if (data.error) return res.status(500).json({ error: data.error.message });
+    const names = (data.models || [])
+      .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+      .map(m => m.name.replace('models/', ''));
+    res.json({ available: names });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── AI endpoint ───────────────────────────────────────────────────────────────
 
 app.post('/api/ai-assist', authMiddleware, async (req, res) => {
   try {
+    if (!GEMINI_API_KEY) return res.status(503).json({ error: 'AI not configured — set GEMINI_API_KEY env var' });
     const { text, action } = req.body;
     if (!text?.trim()) return res.status(400).json({ error: 'Text is required' });
     const prompts = {
