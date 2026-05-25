@@ -239,6 +239,7 @@ io.on('connection', (socket) => {
 
     socket.emit('init-document', { text: docContent });
     socket.emit('user-list',     { users: Object.values(room.users) });
+    socket.emit('chat-history',  { messages: room.messages || [] });
     socket.to(roomId).emit('user-joined', {
       username: socket.username, socketId: socket.id, users: Object.values(room.users),
     });
@@ -261,6 +262,16 @@ io.on('connection', (socket) => {
   socket.on('typing', ({ roomId }) => {
     const room = rooms[roomId]; if (!room || !room.users[socket.id]) return;
     socket.to(roomId).emit('typing', { username: room.users[socket.id].username, socketId: socket.id });
+  });
+
+  socket.on('chat-message', ({ roomId, text }) => {
+    const room = rooms[roomId]; if (!room || !room.users[socket.id]) return;
+    const clean = text?.trim().slice(0, 500); if (!clean) return;
+    if (!room.messages) room.messages = [];
+    const msg = { username: socket.username, text: clean, time: new Date().toISOString() };
+    room.messages.push(msg);
+    if (room.messages.length > 100) room.messages.shift();
+    io.to(roomId).emit('chat-message', msg);
   });
 
   socket.on('disconnect', () => {
